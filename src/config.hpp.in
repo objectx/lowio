@@ -1,0 +1,14 @@
+//
+// Created by Masashi Fujita on 2016/05/03.
+// Copyright (c) 2016 Polyphony Digital Inc. All rights reserved.
+//
+
+#pragma once
+#ifndef config_hpp__7CB88E7B_6B08_4573_90F1_5C564F6ABB9A
+#define config_hpp__7CB88E7B_6B08_4573_90F1_5C564F6ABB9A    1
+
+#cmakedefine HAVE_SYS_STAT_H
+#cmakedefine HAVE_FCNTL_H
+#cmakedefine HAVE_UNISTD_H
+
+#endif /* config_hpp__7CB88E7B_6B08_4573_90F1_5C564F6ABB9A */
