@@ -2,4 +2,4 @@
 
 # LICENSE
 
-[MIT](https://opensource.org/licenses/mit)
+[MIT](/LICENSE)
