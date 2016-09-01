@@ -28,4 +28,5 @@ add_library (${TARGET_NAME} STATIC ${LOWIO_SOURCES} ${LOWIO_HEADERS})
     target_compile_definitions (${TARGET_NAME} PRIVATE "-DHAVE_CONFIG_HPP")
     target_compile_features (${TARGET_NAME} PUBLIC cxx_auto_type
                                                    cxx_constexpr
-                                                   cxx_generalized_initializers)
+                                                   cxx_generalized_initializers
+                                                   cxx_return_type_deduction)
