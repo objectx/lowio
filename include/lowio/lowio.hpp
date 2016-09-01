@@ -13,8 +13,11 @@
 #include <assert.h>
 
 #include <stdexcept>
+#include <memory>
 #include <string>
-#include <fcntl.h>
+#ifdef HAVE_FCNTL_H
+#   include <fcntl.h>
+#endif
 
 #if defined (_WIN64) || defined (_WIN32)
 #   define WIN32_LEAN_AND_MEAN
@@ -23,7 +26,8 @@
 
 namespace LowIO {
 
-    enum class ErrorCode { OPEN_FAILED
+    enum class ErrorCode { SUCCESS
+                         , OPEN_FAILED
                          , CREATE_FAILED
                          , CLOSE_FAILED
                          , BAD_HANDLE
@@ -33,19 +37,73 @@ namespace LowIO {
                          , TRUNCATE_FAILED
                          , DUPLICATE_FAILED } ;
 
-    class Error final : public std::runtime_error {
-    private:
-        ErrorCode	code_ ;
+    class result_t {
+        ErrorCode code_ = ErrorCode::SUCCESS ;
+        std::unique_ptr<std::string>    message_ ;
     public:
-        Error (ErrorCode code, const std::string &msg)
-                : std::runtime_error { msg }, code_ { code } {
+        result_t () { /* NO-OP */ }
+
+        result_t (ErrorCode code, const std::string &msg)
+                : code_ { code }
+                , message_ { std::make_unique<std::string> (msg) } {
             /* NO-OP */
         }
 
-        ErrorCode   code () const {
+        result_t (ErrorCode code, std::string &&msg)
+                : code_ { code }
+                , message_ { std::make_unique<std::string> (std::move (msg)) } {
+            /* NO-OP */
+        }
+
+        result_t (result_t &&src) = default ;
+
+        ErrorCode getErrorCode () const {
             return code_ ;
         }
+
+        operator bool () const {
+            return code_ == ErrorCode::SUCCESS ;
+        }
+
+        bool    operator ! () const {
+            return code_ != ErrorCode::SUCCESS ;
+        }
+
+        std::string getMessage () const {
+            if (message_) {
+                return *message_ ;
+            }
+            return std::string {} ;
+        }
     } ;
+
+    template <typename T_>
+        class result_t_ final : public result_t {
+            T_  value_ ;
+        public:
+            explicit result_t_ (const T_ &value) : value_ { value } {
+                /* NO-OP */
+            }
+
+            result_t_ (ErrorCode code, const std::string &msg)
+                    : result_t { code, msg } {
+                /* NO-OP */
+            }
+
+            result_t_ (ErrorCode code, std::string &&msg)
+                    : result_t { code, std::move (msg) } {
+                /* NO-OP */
+            }
+
+            explicit operator T_ () const {
+                return value_ ;
+            }
+
+            const T_ &  getValue () const {
+                return value_ ;
+            }
+        } ;
+
 
     enum class SeekOrigin { BEGIN, END, CURRENT };
 
@@ -71,16 +129,16 @@ namespace LowIO {
     } ;
     // FileHandle aliases...
 #if defined (_WIN32) || defined (_WIN64)
-    using handle_t = HANDLE ;
-    const handle_t	BAD_HANDLE = INVALID_HANDLE_VALUE ;
-    inline bool	valid_handle_p (handle_t H) {
+    using native_handle_t = HANDLE ;
+    const native_handle_t	BAD_HANDLE = INVALID_HANDLE_VALUE ;
+    inline bool	valid_handle_p (native_handle_t H) {
         return (H != BAD_HANDLE) ;
     }
 #else
-    using handle_t = int ;
-    const handle_t	BAD_HANDLE = static_cast<handle_t> (-1) ;
+    using native_handle_t = int ;
+    const native_handle_t	BAD_HANDLE = static_cast<native_handle_t> (-1) ;
 
-    inline bool	valid_handle_p (handle_t H) {
+    inline bool	valid_handle_p (native_handle_t H) {
         return (0 <= H) ;
     }
 #endif
@@ -90,7 +148,7 @@ namespace LowIO {
      *
      * @return handle for input
      */
-    inline handle_t	GetSTDIN () {
+    inline native_handle_t	GetSTDIN () {
 #if defined (_WIN32) || defined (_WIN64)
         return GetStdHandle (STD_INPUT_HANDLE) ;
 #else
@@ -103,7 +161,7 @@ namespace LowIO {
      *
      * @return handle for output
      */
-    inline handle_t	GetSTDOUT () {
+    inline native_handle_t	GetSTDOUT () {
 #if defined (_WIN32) || defined (_WIN64)
         return GetStdHandle (STD_OUTPUT_HANDLE) ;
 #else
@@ -116,7 +174,7 @@ namespace LowIO {
      *
      * @return handle for error output
      */
-    inline handle_t	GetSTDERR () {
+    inline native_handle_t	GetSTDERR () {
 #if defined (_WIN32) || defined (_WIN64)
         return GetStdHandle (STD_ERROR_HANDLE) ;
 #else
@@ -124,34 +182,41 @@ namespace LowIO {
 #endif
     }
 
-    //! @brief Opens a file handle.
-    handle_t open (const std::string &path, OpenFlags flag, uint32_t mode) ;
+    //! @brief Opens/Creates `path`
+    //! @param path Path to open/create.
+    //! @param flag Flags
+    //! @param mode Access mode
+    //! @return File handle
+    native_handle_t open (const std::string &path, OpenFlags flag, uint32_t mode) ;
+
     //! @brief Closes a file handle.
-    void close (handle_t &&h) ;
+    //! @param h Handle to close
+    //! @remaks After calling this, passed `h` is invalidated.
+    result_t close (native_handle_t &&h) ;
 
-    /** Wrapper class for using OS's native file handle.  */
-    class _os_handle_t final {
+    //! Wrapper class for using OS's native file handle.
+    class handle_t final {
     private:
-        handle_t	value_ ;
+        native_handle_t	value_ ;
     public:
-        ~_os_handle_t () ;
+        ~handle_t () ;
 
-        _os_handle_t () : value_ { BAD_HANDLE } {/* NO-OP */}
+        handle_t () : value_ { BAD_HANDLE } {/* NO-OP */}
 
-        explicit _os_handle_t (handle_t h) : value_ { h } {/* NO-OP */}
+        explicit handle_t (native_handle_t h) : value_ { h } {/* NO-OP */}
 
-        _os_handle_t (_os_handle_t &&src) : value_ { src.detach () } { /* NO-OP */ }
+        handle_t (handle_t &&src) : value_ { src.detach () } { /* NO-OP */ }
 
-        operator handle_t () const {
+        operator native_handle_t () const {
             return value_ ;
         }
 
-        _os_handle_t &	operator = (_os_handle_t &&src) {
+        handle_t &	operator = (handle_t &&src) {
             attach (src.detach ()) ;
             return *this ;
         }
 
-        handle_t	handle () const {
+        native_handle_t	handle () const {
             return value_ ;
         }
 
@@ -167,18 +232,26 @@ namespace LowIO {
             return ! valid () ;
         }
 
-        void		close () ;
-
-        void		attach (handle_t h) {
-            if (valid ()) {
-                this->close () ;
-            }
-            value_ = h ;
+        result_t    close () {
+            return LowIO::close (std::move (value_)) ;
         }
 
-        handle_t	detach () {
-            handle_t	result = value_ ;
-            value_ = BAD_HANDLE ;
+        result_t    attach (native_handle_t h) {
+            if (valid ()) {
+                if (auto r = this->close ()) {
+                    /* NO-OP */
+                }
+                else {
+                    return r ;
+                }
+            }
+            value_ = h ;
+            return {} ;
+        }
+
+        native_handle_t	detach () {
+            native_handle_t	result = BAD_HANDLE ;
+            std::swap (result, value_) ;
             return result ;
         }
 
@@ -189,7 +262,7 @@ namespace LowIO {
          * @param offset delta value
          * @param origin origin for computing file-pointer
          */
-        size_t	seek (int64_t offset, SeekOrigin origin) ;
+        result_t_<size_t>   seek (int64_t offset, SeekOrigin origin) ;
 
         /**
          * Reads <code>size</code> bytes data into <code>data</code>
@@ -198,7 +271,7 @@ namespace LowIO {
          * @param size buffer size
          * @param sz_read actually read bytes
          */
-        size_t  read (void *data, size_t maxsize) ;
+        result_t_<size_t>   read (void *data, size_t maxsize) ;
 
         /**
          * Writes <code>size</code> bytes data from <code>data</code>.
@@ -206,24 +279,25 @@ namespace LowIO {
          * @param data the source
          * @param size size to write
          */
-        void    write (const void *data, size_t size) ;
+        result_t    write (const void *data, size_t size) ;
 
         /**
          * Truncates file at current position.
          */
-        void    truncate () ;
+        result_t    truncate () ;
 
         /**
          * Duplicates supplied handle.
          *
          * @param h the handle to duplicate
          */
-        void    duplicate (handle_t h) ;
+        result_t    duplicate (native_handle_t h) ;
     } ;
+
 
     class Input {
     private:
-        _os_handle_t	h_;
+        handle_t	h_;
     public:
         ~Input () { /* NO-OP */ }
         Input () { /* NO-OP */ }
@@ -236,9 +310,9 @@ namespace LowIO {
             this->open (file) ;
         }
 
-        explicit Input (handle_t h) : h_ (h) { /* NO-OP */ }
+        explicit Input (native_handle_t h) : h_ { h } { /* NO-OP */ }
 
-        Input (Input &&src) : h_ (src.detach ()) {
+        Input (Input &&src) : h_ { src.detach () } {
             /* NO-OP */
         }
         /**
@@ -246,19 +320,18 @@ namespace LowIO {
          *
          * @param file file to read
          */
-        Input &	open (const std::string &file);
+        result_t	open (const std::string &file) ;
 
         /** Closes attached handle.  */
-        void	close() {
-            h_.close();
+        result_t	close() {
+            return h_.close();
         }
 
-        Input & attach (handle_t h) {
-            h_.attach (h);
-            return *this ;
+        result_t    attach (native_handle_t h) {
+            return h_.attach (h) ;
         }
 
-        handle_t	detach () {
+        native_handle_t	detach () {
             return h_.detach ();
         }
 
@@ -269,7 +342,7 @@ namespace LowIO {
          * @param data buffer to store data
          * @param size buffer size
          */
-        size_t	fetch (void *data, size_t size) {
+        result_t_<size_t>	fetch (void *data, size_t size) {
             return h_.read (data, size) ;
         }
         /**
@@ -279,32 +352,35 @@ namespace LowIO {
          * @param data buffer to store data
          * @param size size to read
          */
-        void	read (void *data, size_t size) {
-            auto sz_read = h_.read (data, size);
-            if (sz_read != size) {
-                throw Error { ErrorCode::READ_FAILED, std::string { "Premature EOF" } } ;
+        result_t	read (void *data, size_t size) {
+            auto r = h_.read (data, size);
+            if (! r) {
+                return std::move (r) ;
             }
+            if (r.getValue () != size) {
+                return { ErrorCode::READ_FAILED, std::string { "Premature EOF" } } ;
+            }
+            return {} ;
         }
         /**
-         * Moving file-pointer to specified position (for giant file).
+         * Moving file-pointer to the specified position.
          *
          * @return byte offset from the beginning
          * @param offset delta value
          * @param origin origin for computing file-pointer
          */
-        uint64_t	seek (int64_t offset, SeekOrigin origin) {
-            return static_cast<uint64_t> (h_.seek (offset, origin)) ;
+        result_t_<size_t>	seek (int64_t offset, SeekOrigin origin) {
+            return h_.seek (offset, origin) ;
         }
 
-        Input & duplicate (handle_t h) {
-            h_.duplicate (h) ;
-            return *this ;
+        result_t    duplicate (native_handle_t h) {
+            return h_.duplicate (h) ;
         }
     };
 
     class Output {
     private:
-        _os_handle_t	h_ ;
+        handle_t	h_ ;
     public:
         ~Output () { /* NO-OP */ }
         Output () { /* NO-OP */ }
@@ -313,7 +389,7 @@ namespace LowIO {
             this->open (file) ;
         }
 
-        explicit Output (handle_t h) : h_ { h } { /* NO-OP */ }
+        explicit Output (native_handle_t h) : h_ { h } { /* NO-OP */ }
         Output (Output &&src) : h_ { src.detach() } { /* NO-OP */ }
 
         /**
@@ -321,18 +397,18 @@ namespace LowIO {
          *
          * @param file file to read
          */
-        void	open (const std::string &file) ;
+        result_t	open (const std::string &file) ;
 
-        void	close () {
-            h_.close() ;
+        result_t	close () {
+            return h_.close() ;
         }
 
-        Output &	attach (handle_t h) {
+        Output &	attach (native_handle_t h) {
             h_.attach(h) ;
             return *this ;
         }
 
-        handle_t	detach () {
+        native_handle_t	detach () {
             return h_.detach() ;
         }
 
@@ -342,8 +418,8 @@ namespace LowIO {
          * @param data   the source
          * @param size   size to write
          */
-        void	write (const void *data, size_t size) {
-            h_.write(data, size) ;
+        result_t	write (const void *data, size_t size) {
+            return h_.write(data, size) ;
         }
 
         /**
@@ -353,19 +429,17 @@ namespace LowIO {
          * @param offset delta value
          * @param origin origin for computing file-pointer
          */
-        uint64_t	seek (int64_t offset, SeekOrigin origin) {
-            return static_cast<uint64_t> (h_.seek (offset, origin)) ;
+        result_t_<size_t>   seek (int64_t offset, SeekOrigin origin) {
+            return h_.seek (offset, origin) ;
         }
 
-        Output &	duplicate (handle_t h) {
-            h_.duplicate(h) ;
-            return *this ;
+        result_t	duplicate (native_handle_t h) {
+            return h_.duplicate(h) ;
         }
 
         /** Truncate file at current position.  */
-        Output &	truncate () {
-            h_.truncate() ;
-            return *this ;
+        result_t	truncate () {
+            return h_.truncate() ;
         }
     } ;
 }
