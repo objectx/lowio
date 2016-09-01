@@ -219,7 +219,13 @@ namespace LowIO {
 
     Input & Input::open (const std::string &file) {
 #if defined (_WIN32) || defined (_WIN64)
-        HANDLE    H = CreateFile (file.c_str (), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0) ;
+        HANDLE    H = CreateFileA ( file.c_str ()
+                                  , GENERIC_READ
+                                  , FILE_SHARE_READ
+                                  , nullptr
+                                  , OPEN_EXISTING
+                                  , FILE_ATTRIBUTE_NORMAL
+                                  , 0) ;
         if (H == INVALID_HANDLE_VALUE) {
             throw Error { ErrorCode::OPEN_FAILED
                         , std::string { "Failed to open file [" }.append (file).append ("] (").append (get_last_error_message ()).append (").") } ;
@@ -240,7 +246,7 @@ namespace LowIO {
 #if defined (_WIN32) || defined (_WIN64)
         HANDLE    H = CreateFile(file.c_str (), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0) ;
         if (H == INVALID_HANDLE_VALUE) {
-            throw Error { Error::ERR_CREATE_FAILED
+            throw Error { ErrorCode::CREATE_FAILED
                         , std::string { "Failed to create file [" }.append (file).append ("] (").append (get_last_error_message ()).append (").") } ;
         }
         h_.attach (static_cast <handle_t> (H)) ;

@@ -15,6 +15,11 @@
 #include <stdexcept>
 #include <string>
 
+#if defined (_WIN64) || defined (_WIN32)
+#   define WIN32_LEAN_AND_MEAN
+#   include <Windows.h>
+#endif
+
 namespace LowIO {
 
     enum class ErrorCode { OPEN_FAILED
