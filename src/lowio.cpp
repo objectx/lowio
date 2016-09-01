@@ -16,8 +16,8 @@
 #   include <unistd.h>
 #endif
 
-#if defined (_WIN32) || defined (_WIN64)
 namespace {
+#if defined (_WIN32) || defined (_WIN64)
     std::string	get_last_error_message (DWORD code) {
         void *	msg = nullptr ;
         FormatMessageA ((FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS),
@@ -35,10 +35,73 @@ namespace {
     std::string	get_last_error_message () {
         return get_last_error_message (GetLastError ()) ;
     }
-}
 #endif
 
+    bool is_on (LowIO::OpenFlags value, LowIO::OpenFlags f) {
+        return (static_cast<uint32_t> (value) & static_cast<uint32_t> (f)) != 0 ;
+    }
+}
+
 namespace LowIO {
+    handle_t open (const std::string &path, OpenFlags flags, uint32_t mode) {        
+#if defined (_WIN64) || defined (_WIN32)
+        auto make_access = [](OpenFlags f) -> DWORD {
+            if (is_on (f, OpenFlags::WRITE_ONLY)) {
+                return GENERIC_WRITE ;
+            }
+            if (is_on (f, OpenFlags::READ_WRITE)) {
+                return GENERIC_WRITE | GENERIC_READ ;
+            }
+            return GENERIC_READ ;
+        } ;
+        auto make_creation = [](OpenFlags f) -> DWORD {
+            DWORD result = 0 ;
+            if (is_on (f, OpenFlags::CREATE)) {
+                if (is_on (f, OpenFlags::EXCLUDE)) {
+                    result |= CREATE_NEW ;
+                }
+                else {
+                    result |= OPEN_ALWAYS ;
+                }
+            }
+            if (is_on (f, OpenFlags::TRUNCATE)) {
+                result |= TRUNCATE_EXISTING ;
+            }
+            return result ;
+        } ;
+        HANDLE    H = CreateFileA (path.c_str ()
+                                   , make_access (flags)
+                                   , FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
+                                   , nullptr
+                                   , make_creation (flags)
+                                   , FILE_ATTRIBUTE_NORMAL
+                                   , 0) ;
+        if (H == INVALID_HANDLE_VALUE) {
+            throw Error { ErrorCode::OPEN_FAILED
+                        , std::string { "Failed to open file [" }.append (path).append ("] (").append (get_last_error_message ()).append (").") } ;
+        }
+#else
+#endif
+    }
+
+    void close (handle_t &&h) {
+        if (! valid_handle_p (h)) {
+            return ;
+        }
+        handle_t H = BAD_HANDLE ;
+        std::swap (H, h) ;
+#if defined (_WIN64) || defined (_WIN32)
+        if (!CloseHandle (H)) {
+            throw Error { ErrorCode::CLOSE_FAILED
+                        , std::string { "Close failed (" }.append (get_last_error_message ()).append (").") } ;
+        }
+#else
+        if (::close (H) != 0) {
+            throw Error { ErrorCode::CLOSE_FAILED
+                        , std::string { "Close failed." } } ;
+        }
+#endif
+    }
 
     _os_handle_t::~_os_handle_t () {
         if (! valid ()) {
@@ -53,21 +116,7 @@ namespace LowIO {
     }
 
     void    _os_handle_t::close () {
-        if (! valid ()) {
-            return ;
-        }
-        handle_t  H = value_ ;
-        value_ = BAD_HANDLE ;
-#if defined (_WIN32) || defined (_WIN64)
-        if (! CloseHandle (H)) {
-            throw Error { ErrorCode::CLOSE_FAILED
-                        , std::string { "Close failed (" }.append (get_last_error_message ()).append (").") } ;
-        }
-#else	/* not (_WIN32 || _WIN64) */
-        if (::close (H) != 0) {
-            throw Error { ErrorCode::CLOSE_FAILED, std::string { "Close failed." } } ;
-        }
-#endif	/* not (_WIN32 || _WIN64) */
+        LowIO::close (std::move (value_)) ;
     }
 
     size_t _os_handle_t::seek (int64_t offset, SeekOrigin origin) {
@@ -244,7 +293,7 @@ namespace LowIO {
 
     void	Output::open (const std::string &file) {
 #if defined (_WIN32) || defined (_WIN64)
-        HANDLE    H = CreateFile(file.c_str (), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0) ;
+        HANDLE    H = CreateFile(file.c_str (), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0) ;
         if (H == INVALID_HANDLE_VALUE) {
             throw Error { ErrorCode::CREATE_FAILED
                         , std::string { "Failed to create file [" }.append (file).append ("] (").append (get_last_error_message ()).append (").") } ;

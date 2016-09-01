@@ -14,6 +14,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <fcntl.h>
 
 #if defined (_WIN64) || defined (_WIN32)
 #   define WIN32_LEAN_AND_MEAN
@@ -48,6 +49,26 @@ namespace LowIO {
 
     enum class SeekOrigin { BEGIN, END, CURRENT };
 
+    enum class OpenFlags : uint32_t {
+#if ! (defined (_WIN32) || defined (_WIN64))
+        // For the UN?X like systems
+          READ_ONLY  = O_RDONLY
+        , WRITE_ONLY = O_WRONLY
+        , READ_WRITE = O_RDWR
+        , APPEND     = O_APPEND
+        , CREATE     = O_CREAT
+        , TRUNCATE   = O_TRUNC
+        , EXCLUDE    = O_EXCL
+#else
+          READ_ONLY  = _O_RDONLY
+        , WRITE_ONLY = _O_WRONLY
+        , READ_WRITE = _O_RDWR
+        , APPEND     = _O_APPEND
+        , CREATE     = _O_CREAT
+        , TRUNCATE   = _O_TRUNC
+        , EXCLUDE    = _O_EXCL
+#endif
+    } ;
     // FileHandle aliases...
 #if defined (_WIN32) || defined (_WIN64)
     using handle_t = HANDLE ;
@@ -72,9 +93,9 @@ namespace LowIO {
     inline handle_t	GetSTDIN () {
 #if defined (_WIN32) || defined (_WIN64)
         return GetStdHandle (STD_INPUT_HANDLE) ;
-#else	/* not (_WIN32 || _WIN64) */
+#else
         return 0 ;
-#endif	/* not (_WIN32 || _WIN64) */
+#endif
     }
 
     /**
@@ -85,9 +106,9 @@ namespace LowIO {
     inline handle_t	GetSTDOUT () {
 #if defined (_WIN32) || defined (_WIN64)
         return GetStdHandle (STD_OUTPUT_HANDLE) ;
-#else	/* not (_WIN32 || _WIN64) */
+#else
         return 1 ;
-#endif	/* not (_WIN32 || _WIN64) */
+#endif
     }
 
     /**
@@ -98,10 +119,15 @@ namespace LowIO {
     inline handle_t	GetSTDERR () {
 #if defined (_WIN32) || defined (_WIN64)
         return GetStdHandle (STD_ERROR_HANDLE) ;
-#else	/* not (_WIN32 || _WIN64) */
+#else
         return 2 ;
-#endif	/* not (_WIN32 || _WIN64) */
+#endif
     }
+
+    //! @brief Opens a file handle.
+    handle_t open (const std::string &path, OpenFlags flag, uint32_t mode) ;
+    //! @brief Closes a file handle.
+    void close (handle_t &&h) ;
 
     /** Wrapper class for using OS's native file handle.  */
     class _os_handle_t final {
