@@ -9,6 +9,8 @@ find_package (Boost REQUIRED COMPONENTS filesystem)
 
 set (SOURCE_FILES
     openclose.cpp
+    handle.cpp
+    output.cpp
     fixture.cpp
     fixture.hpp
     main.cpp)
