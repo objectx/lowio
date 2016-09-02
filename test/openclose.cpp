@@ -1,5 +1,5 @@
-#include <string>
 #include <catch.hpp>
+#include <string>
 
 #include <lowio/lowio.hpp>
 
