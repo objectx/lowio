@@ -15,9 +15,9 @@
 #include <stdexcept>
 #include <memory>
 #include <string>
-#ifdef HAVE_FCNTL_H
-#   include <fcntl.h>
-#endif
+
+#include <fcntl.h>
+
 
 #if defined (_WIN64) || defined (_WIN32)
 #   define WIN32_LEAN_AND_MEAN
@@ -26,6 +26,7 @@
 
 namespace LowIO {
 
+    //! Error codes.
     enum class ErrorCode { SUCCESS
                          , OPEN_FAILED
                          , CREATE_FAILED
@@ -37,6 +38,7 @@ namespace LowIO {
                          , TRUNCATE_FAILED
                          , DUPLICATE_FAILED } ;
 
+    //! Represents a operation result.
     class result_t {
         ErrorCode code_ = ErrorCode::SUCCESS ;
         std::unique_ptr<std::string>    message_ ;
@@ -76,6 +78,7 @@ namespace LowIO {
             return std::string {} ;
         }
     } ;
+
 
     template <typename T_>
         class result_t_ final : public result_t {
@@ -144,44 +147,37 @@ namespace LowIO {
     }
 #endif
 
-    /**
-     * Gets OS's native handle for input.
-     *
-     * @return handle for input
-     */
+#if (! defined (_WIN64)) && (! defined (_WIN32))
+    //! Gets OS's native handle for the input.
+    //! @return Handle for input
     inline native_handle_t	GetSTDIN () {
-#if defined (_WIN32) || defined (_WIN64)
-        return GetStdHandle (STD_INPUT_HANDLE) ;
-#else
         return 0 ;
-#endif
     }
 
-    /**
-     * Gets OS's native handle for output.
-     *
-     * @return handle for output
-     */
+    //! Gets OS's native handle for output.
+    //! @return Handle for output
     inline native_handle_t	GetSTDOUT () {
-#if defined (_WIN32) || defined (_WIN64)
-        return GetStdHandle (STD_OUTPUT_HANDLE) ;
-#else
         return 1 ;
-#endif
     }
 
-    /**
-     * Gets OS's native handle for error output.
-     *
-     * @return handle for error output
-     */
+    //! Gets OS's native handle for error output.
+    //! @return Handle for error output
     inline native_handle_t	GetSTDERR () {
-#if defined (_WIN32) || defined (_WIN64)
-        return GetStdHandle (STD_ERROR_HANDLE) ;
-#else
         return 2 ;
-#endif
     }
+#else   /* _WIN64 OR _WIN32 */
+    inline native_handle_t	GetSTDIN () {
+        return GetStdHandle (STD_INPUT_HANDLE) ;
+    }
+
+    inline native_handle_t	GetSTDOUT () {
+        return GetStdHandle (STD_OUTPUT_HANDLE) ;
+    }
+
+    inline native_handle_t	GetSTDERR () {
+        return GetStdHandle (STD_ERROR_HANDLE) ;
+    }
+#endif  /* _WIN64 OR _WIN32 */
 
     //! @brief Opens/Creates `path`
     //! @param path Path to open/create.
@@ -198,17 +194,19 @@ namespace LowIO {
     //! Wrapper class for using OS's native file handle.
     class handle_t final {
     private:
-        native_handle_t	value_ ;
+        native_handle_t	value_ = BAD_HANDLE ;
     public:
-        ~handle_t () ;
+        ~handle_t () {
+            this->close () ;
+        }
 
-        handle_t () : value_ { BAD_HANDLE } {/* NO-OP */}
+        handle_t () = default ;
 
         explicit handle_t (native_handle_t h) : value_ { h } {/* NO-OP */}
 
         handle_t (handle_t &&src) : value_ { src.detach () } { /* NO-OP */ }
 
-        operator native_handle_t () const {
+        explicit operator native_handle_t () const {
             return value_ ;
         }
 
@@ -256,42 +254,28 @@ namespace LowIO {
             return result ;
         }
 
-        /**
-         * Moving file-pointer to specified position.
-         *
-         * @return byte offset from the beginning
-         * @param offset delta value
-         * @param origin origin for computing file-pointer
-         */
+        //! Moving file-pointer to the specified position.
+        //! @return byte offset from the beginning
+        //! @param offset delta value
+        //! @param origin origin for computing file-pointer
         result_t_<size_t>   seek (int64_t offset, SeekOrigin origin) ;
 
-        /**
-         * Reads <code>size</code> bytes data into <code>data</code>
-         *
-         * @param data buffer to store data
-         * @param size buffer size
-         * @param sz_read actually read bytes
-         */
+        //! Reads <code>size</code> bytes data into <code>data</code>
+        //! @param data buffer to store data
+        //! @param size buffer size
+        //! @param sz_read actually read bytes
         result_t_<size_t>   read (void *data, size_t maxsize) ;
 
-        /**
-         * Writes <code>size</code> bytes data from <code>data</code>.
-         *
-         * @param data the source
-         * @param size size to write
-         */
+        //! Writes <code>size</code> bytes data from <code>data</code>.
+        //! @param data the source
+        //! @param size size to write
         result_t    write (const void *data, size_t size) ;
 
-        /**
-         * Truncates file at current position.
-         */
+        //! Truncates a opened file at the current position.
         result_t    truncate () ;
 
-        /**
-         * Duplicates supplied handle.
-         *
-         * @param h the handle to duplicate
-         */
+        //! Duplicates supplied handle.
+        //! @param h The handle to duplicate
         result_t    duplicate (native_handle_t h) ;
     } ;
 
@@ -300,13 +284,11 @@ namespace LowIO {
     private:
         handle_t	h_;
     public:
-        ~Input () { /* NO-OP */ }
-        Input () { /* NO-OP */ }
-        /**
-         * Construct & open <code>file</code>
-         *
-         * @param file file to read
-         */
+        ~Input () = default ;
+        Input () = default ;
+
+        //! Construct & open `file`
+        //! @param file file to read
         Input (const std::string &file) {
             this->open (file) ;
         }
@@ -316,14 +298,17 @@ namespace LowIO {
         Input (Input &&src) : h_ { src.detach () } {
             /* NO-OP */
         }
-        /**
-         * Opens <code>file</code> for reading.
-         *
-         * @param file file to read
-         */
-        result_t	open (const std::string &file) ;
 
-        /** Closes attached handle.  */
+        bool valid () const {
+            return h_.valid () ;
+        }
+        //! Opens `file` for reading.
+        //! @param file File to read
+        result_t	open (const std::string &file) {
+            return h_.attach (LowIO::open (file, OpenFlags::READ_ONLY, 0666)) ;
+        }
+
+        //! Closes attached handle
         result_t	close() {
             return h_.close();
         }
@@ -336,40 +321,33 @@ namespace LowIO {
             return h_.detach ();
         }
 
-        /**
-         * Reads at most <code>size</code> bytes data into <code>data</code>
-         *
-         * @return # of bytes read
-         * @param data buffer to store data
-         * @param size buffer size
-         */
+        //! Reads at most `size` bytes data into the `data`.
+        //! @return # of bytes read
+        //! @param data buffer to store data
+        //! @param size buffer size
         result_t_<size_t>	fetch (void *data, size_t size) {
             return h_.read (data, size) ;
         }
-        /**
-         * Reads <code>size</code> bytes data into <code>data</code>.
-         * Raising exception if failed to read exactly <code>size</code> bytes.
-         *
-         * @param data buffer to store data
-         * @param size size to read
-         */
+
+        //! Reads `size` bytes data into `data`.
+        //! Raising exception if failed to read exactly <code>size</code> bytes.
+        //! @param data buffer to store data
+        //! @param size size to read
         result_t	read (void *data, size_t size) {
             auto r = h_.read (data, size);
             if (! r) {
-                return std::move (r) ;
+                return { std::move (r) } ;
             }
             if (r.getValue () != size) {
                 return { ErrorCode::READ_FAILED, std::string { "Premature EOF" } } ;
             }
             return {} ;
         }
-        /**
-         * Moving file-pointer to the specified position.
-         *
-         * @return byte offset from the beginning
-         * @param offset delta value
-         * @param origin origin for computing file-pointer
-         */
+
+        //! Moving file-pointer to the specified position.
+        //! @return byte offset from the beginning
+        //! @param offset delta value
+        //! @param origin origin for computing file-pointer
         result_t_<size_t>	seek (int64_t offset, SeekOrigin origin) {
             return h_.seek (offset, origin) ;
         }
@@ -383,8 +361,8 @@ namespace LowIO {
     private:
         handle_t	h_ ;
     public:
-        ~Output () { /* NO-OP */ }
-        Output () { /* NO-OP */ }
+        ~Output () = default ;
+        Output () = default ;
 
         Output (const std::string &file) {
             this->open (file) ;
@@ -393,12 +371,15 @@ namespace LowIO {
         explicit Output (native_handle_t h) : h_ { h } { /* NO-OP */ }
         Output (Output &&src) : h_ { src.detach() } { /* NO-OP */ }
 
-        /**
-         * Opens & Creates <code>file</code> for writing.
-         *
-         * @param file file to read
-         */
-        result_t	open (const std::string &file) ;
+        bool valid () const {
+            return h_.valid () ;
+        }
+
+        //! Opens & Creates <code>file</code> for writing.
+        //! @param file file to read
+        result_t	open (const std::string &file) {
+            return h_.attach (LowIO::open (file, OpenFlags::WRITE_ONLY | OpenFlags::CREATE | OpenFlags::TRUNCATE, 0666)) ;
+        }
 
         result_t	close () {
             return h_.close() ;
@@ -413,23 +394,17 @@ namespace LowIO {
             return h_.detach() ;
         }
 
-        /**
-         * Writes <code>size</code> bytes data from <code>data</code>.
-         *
-         * @param data   the source
-         * @param size   size to write
-         */
+        //! Writes `size` bytes data from `data`.
+        //! @param data   the source
+        //! @param size   size to write
         result_t	write (const void *data, size_t size) {
             return h_.write(data, size) ;
         }
 
-        /**
-         * Moving file-pointer to specified position (for giant file).
-         *
-         * @return byte offset from the beginning
-         * @param offset delta value
-         * @param origin origin for computing file-pointer
-         */
+        //! Moving file-pointer to specified position (for giant file).
+        //! @return byte offset from the beginning
+        //! @param offset delta value
+        //! @param origin origin for computing file-pointer
         result_t_<size_t>   seek (int64_t offset, SeekOrigin origin) {
             return h_.seek (offset, origin) ;
         }
@@ -438,7 +413,7 @@ namespace LowIO {
             return h_.duplicate(h) ;
         }
 
-        /** Truncate file at current position.  */
+        //! Truncate file at current position.
         result_t	truncate () {
             return h_.truncate() ;
         }

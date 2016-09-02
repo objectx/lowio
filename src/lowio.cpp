@@ -42,40 +42,52 @@ namespace LowIO {
 
     native_handle_t open (const std::string &path, uint32_t flags, uint32_t mode) {
 #if defined (_WIN64) || defined (_WIN32)
-        auto make_access = [](uint32_t f) -> DWORD {
-            if ((f & OpenFlags::WRITE_ONLY) != 0) {
-                return GENERIC_WRITE ;
+        DWORD access = 0 ;
+        switch (flags & (OpenFlags::READ_ONLY | OpenFlags::WRITE_ONLY | OpenFlags::READ_WRITE)) {
+        case OpenFlags::READ_ONLY:
+            access = GENERIC_READ ;
+            break ;
+        case OpenFlags::WRITE_ONLY:
+            access = GENERIC_WRITE ;
+            break ;
+        case OpenFlags::READ_WRITE:
+            access = GENERIC_READ | GENERIC_WRITE ;
+            break ;
+        default:
+            assert (false) ;    // Should not reached.
+        }
+
+        DWORD creation = 0 ;
+
+        if ((flags & OpenFlags::CREATE) != 0) {
+            if ((flags & OpenFlags::EXCLUDE) != 0) {
+                creation |= CREATE_NEW ;
             }
-            if ((f & OpenFlags::READ_WRITE) != 0) {
-                return GENERIC_WRITE | GENERIC_READ ;
-            }
-            return GENERIC_READ ;
-        } ;
-        auto make_creation = [](uint32_t f) -> DWORD {
-            DWORD result = 0 ;
-            if ((f & OpenFlags::CREATE) != 0) {
-                if ((f & OpenFlags::EXCLUDE) != 0) {
-                    result |= CREATE_NEW ;
+            else {
+                if ((flags & OpenFlags::TRUNCATE) != 0) {
+                    creation |= CREATE_ALWAYS ;
                 }
                 else {
-                    result |= OPEN_ALWAYS ;
+                    creation |= OPEN_ALWAYS ;
                 }
             }
-            if ((f, OpenFlags::TRUNCATE) != 0) {
-                result |= TRUNCATE_EXISTING ;
-            }
-            return result ;
-        } ;
+        }
+        else if ((flags & OpenFlags::TRUNCATE) != 0) {
+            creation |= OPEN_EXISTING | TRUNCATE_EXISTING ;
+        }
+
         HANDLE    H = CreateFileA (path.c_str ()
-                                  , make_access (flags)
+                                  , access
                                   , FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
                                   , nullptr
-                                  , make_creation (flags)
+                                  , creation
                                   , FILE_ATTRIBUTE_NORMAL
                                   , 0) ;
         if (H == INVALID_HANDLE_VALUE) {
+            auto msg = get_last_error_message () ;
             return static_cast<native_handle_t> (BAD_HANDLE) ;
         }
+        return static_cast<native_handle_t> (H) ;
 #else
         auto result = ::open (path.c_str (), static_cast<int> (flags), mode) ;
         if (result < 0) {
@@ -102,10 +114,6 @@ namespace LowIO {
 #endif
         }
         return {} ;
-    }
-
-    handle_t::~handle_t () {
-        this->close () ;
     }
 
     result_t_<size_t>   handle_t::seek (int64_t offset, SeekOrigin origin) {
@@ -259,11 +267,4 @@ namespace LowIO {
 #endif	/* not (_WIN32 || _WIN64) */
     }
 
-    result_t    Input::open (const std::string &file) {
-        return h_.attach (LowIO::open (file, OpenFlags::READ_ONLY, 0666)) ;
-    }
-
-    result_t	Output::open (const std::string &file) {
-        return h_.attach (LowIO::open (file, OpenFlags::WRITE_ONLY | OpenFlags::CREATE | OpenFlags::TRUNCATE, 0666)) ;
-    }
 }
