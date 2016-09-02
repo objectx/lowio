@@ -116,10 +116,6 @@ namespace LowIO {
         return {} ;
     }
 
-    handle_t::~handle_t () {
-        this->close () ;
-    }
-
     result_t_<size_t>   handle_t::seek (int64_t offset, SeekOrigin origin) {
         if (! valid ()) {
             return { ErrorCode::BAD_HANDLE, std::string { "Invalid handle for seek." } } ;
@@ -271,11 +267,4 @@ namespace LowIO {
 #endif	/* not (_WIN32 || _WIN64) */
     }
 
-    result_t    Input::open (const std::string &file) {
-        return h_.attach (LowIO::open (file, OpenFlags::READ_ONLY, 0666)) ;
-    }
-
-    result_t	Output::open (const std::string &file) {
-        return h_.attach (LowIO::open (file, OpenFlags::WRITE_ONLY | OpenFlags::CREATE | OpenFlags::TRUNCATE, 0666)) ;
-    }
 }
