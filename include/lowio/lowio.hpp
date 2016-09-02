@@ -107,26 +107,27 @@ namespace LowIO {
 
     enum class SeekOrigin { BEGIN, END, CURRENT };
 
-    enum class OpenFlags : uint32_t {
+    struct OpenFlags final {
 #if ! (defined (_WIN32) || defined (_WIN64))
         // For the UN?X like systems
-          READ_ONLY  = O_RDONLY
-        , WRITE_ONLY = O_WRONLY
-        , READ_WRITE = O_RDWR
-        , APPEND     = O_APPEND
-        , CREATE     = O_CREAT
-        , TRUNCATE   = O_TRUNC
-        , EXCLUDE    = O_EXCL
+        static const uint32_t  READ_ONLY  = O_RDONLY ;
+        static const uint32_t  WRITE_ONLY = O_WRONLY ;
+        static const uint32_t  READ_WRITE = O_RDWR ;
+        static const uint32_t  APPEND     = O_APPEND ;
+        static const uint32_t  CREATE     = O_CREAT ;
+        static const uint32_t  TRUNCATE   = O_TRUNC ;
+        static const uint32_t  EXCLUDE    = O_EXCL ;
 #else
-          READ_ONLY  = _O_RDONLY
-        , WRITE_ONLY = _O_WRONLY
-        , READ_WRITE = _O_RDWR
-        , APPEND     = _O_APPEND
-        , CREATE     = _O_CREAT
-        , TRUNCATE   = _O_TRUNC
-        , EXCLUDE    = _O_EXCL
+        static const uint32_t  READ_ONLY  = _O_RDONLY ;
+        static const uint32_t  WRITE_ONLY = _O_WRONLY ;
+        static const uint32_t  READ_WRITE = _O_RDWR ;
+        static const uint32_t  APPEND     = _O_APPEND ;
+        static const uint32_t  CREATE     = _O_CREAT ;
+        static const uint32_t  TRUNCATE   = _O_TRUNC ;
+        static const uint32_t  EXCLUDE    = _O_EXCL ;
 #endif
     } ;
+
     // FileHandle aliases...
 #if defined (_WIN32) || defined (_WIN64)
     using native_handle_t = HANDLE ;
@@ -187,7 +188,7 @@ namespace LowIO {
     //! @param flag Flags
     //! @param mode Access mode
     //! @return File handle
-    native_handle_t open (const std::string &path, OpenFlags flag, uint32_t mode) ;
+    native_handle_t open (const std::string &path, uint32_t flag, uint32_t mode) ;
 
     //! @brief Closes a file handle.
     //! @param h Handle to close

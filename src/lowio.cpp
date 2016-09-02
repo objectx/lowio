@@ -36,50 +36,45 @@ namespace {
         return get_last_error_message (GetLastError ()) ;
     }
 #endif
-
-    bool is_on (LowIO::OpenFlags value, LowIO::OpenFlags f) {
-        return (static_cast<uint32_t> (value) & static_cast<uint32_t> (f)) != 0 ;
-    }
 }
 
 namespace LowIO {
 
-    native_handle_t open (const std::string &path, OpenFlags flags, uint32_t mode) {
+    native_handle_t open (const std::string &path, uint32_t flags, uint32_t mode) {
 #if defined (_WIN64) || defined (_WIN32)
-        auto make_access = [](OpenFlags f) -> DWORD {
-            if (is_on (f, OpenFlags::WRITE_ONLY)) {
+        auto make_access = [](uint32_t f) -> DWORD {
+            if ((f & OpenFlags::WRITE_ONLY) != 0) {
                 return GENERIC_WRITE ;
             }
-            if (is_on (f, OpenFlags::READ_WRITE)) {
+            if ((f & OpenFlags::READ_WRITE) != 0) {
                 return GENERIC_WRITE | GENERIC_READ ;
             }
             return GENERIC_READ ;
         } ;
-        auto make_creation = [](OpenFlags f) -> DWORD {
+        auto make_creation = [](uint32_t f) -> DWORD {
             DWORD result = 0 ;
-            if (is_on (f, OpenFlags::CREATE)) {
-                if (is_on (f, OpenFlags::EXCLUDE)) {
+            if ((f & OpenFlags::CREATE) != 0) {
+                if ((f & OpenFlags::EXCLUDE) != 0) {
                     result |= CREATE_NEW ;
                 }
                 else {
                     result |= OPEN_ALWAYS ;
                 }
             }
-            if (is_on (f, OpenFlags::TRUNCATE)) {
+            if ((f, OpenFlags::TRUNCATE) != 0) {
                 result |= TRUNCATE_EXISTING ;
             }
             return result ;
         } ;
         HANDLE    H = CreateFileA (path.c_str ()
-                                   , make_access (flags)
-                                   , FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
-                                   , nullptr
-                                   , make_creation (flags)
-                                   , FILE_ATTRIBUTE_NORMAL
-                                   , 0) ;
+                                  , make_access (flags)
+                                  , FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
+                                  , nullptr
+                                  , make_creation (flags)
+                                  , FILE_ATTRIBUTE_NORMAL
+                                  , 0) ;
         if (H == INVALID_HANDLE_VALUE) {
-            throw Error { ErrorCode::OPEN_FAILED
-                        , std::string { "Failed to open file [" }.append (path).append ("] (").append (get_last_error_message ()).append (").") } ;
+            return static_cast<native_handle_t> (BAD_HANDLE) ;
         }
 #else
         auto result = ::open (path.c_str (), static_cast<int> (flags), mode) ;
@@ -136,10 +131,11 @@ namespace LowIO {
             break ;
         }
         DWORD	err = ::GetLastError () ;
-        if (tmp.LowPart == 0xFFFFFFFFu && err != NO_ERROR)
-            throw Error { ErrorCode::SEEK_FAILED
-                        , std::string { "Seek failed." }.append (get_last_error_message (err)).append (").") } ;
-        return static_cast <uint64_t> (tmp.QuadPart) ;
+        if (tmp.LowPart == 0xFFFFFFFFu && err != NO_ERROR) {
+            return { ErrorCode::SEEK_FAILED
+                   , std::string { "Seek failed." }.append (get_last_error_message (err)).append (").") } ;
+        }
+        return result_t_<size_t> { static_cast<size_t> (tmp.QuadPart) } ;
 #else	/* not (_WIN32 || _WIN64) */
         int64_t   off ;
         switch (origin) {
@@ -168,8 +164,8 @@ namespace LowIO {
 #if defined (_WIN32) || defined (_WIN64)
         DWORD n_read = 0 ;
         if (! ReadFile (value_, data, static_cast <DWORD>(size), &n_read, NULL)) {
-            throw Error { ErrorCode::READ_FAILED
-                        , std::string { "Read failed (" }.append (get_last_error_message ()).append (").") } ;
+            return result_t_<size_t> { ErrorCode::READ_FAILED
+                                     , std::string { "Read failed (" }.append (get_last_error_message ()).append (").") } ;
         }
         auto    sz_read = static_cast <size_t> (n_read) ;
 #else	/* not (_WIN32 || _WIN64) */
@@ -200,10 +196,11 @@ namespace LowIO {
             }
             DWORD	cnt = 0 ;
 
-            if (! WriteFile (value_, static_cast<const char *> (data) + sz_written, sz, &cnt, NULL) ||
-                (cnt != sz))
-                throw Error { ErrorCode::WRITE_FAILED
-                            , std::string { "Write failed (" }.append (get_last_error_message ()).append (").") } ;
+            if (!WriteFile (value_, static_cast<const char *> (data) + sz_written, sz, &cnt, NULL) ||
+                (cnt != sz)) {
+                return result_t { ErrorCode::WRITE_FAILED
+                                , std::string { "Write failed (" }.append (get_last_error_message ()).append (").") } ;
+            }
             sz_written += sz ;
         }
 #else	/* not (_WIN32 || _WIN64) */
@@ -233,8 +230,8 @@ namespace LowIO {
         }
 #if defined (_WIN32) || defined (_WIN64)
         if (! SetEndOfFile (value_)) {
-            throw Error { ErrorCode::TRUNCATE_FAILED
-                        , std::string { "Truncate failed (" }.append (get_last_error_message ()).append (").") } ;
+            return result_t { ErrorCode::TRUNCATE_FAILED
+                            , std::string { "Truncate failed (" }.append (get_last_error_message ()).append (").") } ;
         }
 #else	/* not (_WIN32 || _WIN64) */
         if (::write (value_, "", 0) < 0) {
@@ -249,8 +246,8 @@ namespace LowIO {
         HANDLE	h_new ;
         HANDLE	h_proc = GetCurrentProcess () ;
         if (! DuplicateHandle (h_proc, h, h_proc, &h_new, 0, false, DUPLICATE_SAME_ACCESS)) {
-            throw Error { ErrorCode::DUPLICATE_FAILED
-                        , std::string { "Duplicate handle failed (" }.append (get_last_error_message ()).append (").") } ;
+            return { ErrorCode::DUPLICATE_FAILED
+                   , std::string { "Duplicate handle failed (" }.append (get_last_error_message ()).append (").") } ;
         }
         return this->attach (h_new) ;
 #else	/* not (_WIN32 || _WIN64) */
@@ -263,46 +260,10 @@ namespace LowIO {
     }
 
     result_t    Input::open (const std::string &file) {
-#if defined (_WIN32) || defined (_WIN64)
-        HANDLE    H = CreateFileA ( file.c_str ()
-                                  , GENERIC_READ
-                                  , FILE_SHARE_READ
-                                  , nullptr
-                                  , OPEN_EXISTING
-                                  , FILE_ATTRIBUTE_NORMAL
-                                  , 0) ;
-        if (H == INVALID_HANDLE_VALUE) {
-            throw Error { ErrorCode::OPEN_FAILED
-                        , std::string { "Failed to open file [" }.append (file).append ("] (").append (get_last_error_message ()).append (").") } ;
-        }
-        return h_.attach (static_cast <native_handle_t> (H)) ;
-#else	/* not (_WIN32 || _WIN64) */
-        int	fd = ::open (file.c_str (), O_RDONLY) ;
-        if (fd < 0) {
-            return { ErrorCode::OPEN_FAILED
-                   , std::string { "Failed to open file [" }.append (file).append ("].") } ;
-        }
-        return h_.attach (static_cast <native_handle_t> (fd)) ;
-#endif	/* not (_WIN32 || _WIN64) */
+        return h_.attach (LowIO::open (file, OpenFlags::READ_ONLY, 0666)) ;
     }
 
     result_t	Output::open (const std::string &file) {
-#if defined (_WIN32) || defined (_WIN64)
-        HANDLE    H = CreateFile(file.c_str (), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0) ;
-        if (H == INVALID_HANDLE_VALUE) {
-            throw Error { ErrorCode::CREATE_FAILED
-                        , std::string { "Failed to create file [" }.append (file).append ("] (").append (get_last_error_message ()).append (").") } ;
-        }
-        return h_.attach (static_cast <handle_t> (H)) ;
-#else	/* not (_WIN32 || _WIN64) */
-
-        int	fd = ::open (file.c_str (), O_CREAT | O_WRONLY | O_TRUNC, 0666) ;
-
-        if (fd < 0) {
-            return { ErrorCode::CREATE_FAILED
-                   , std::string ("Failed to create file [").append (file).append ("].") } ;
-        }
-        return h_.attach (static_cast <native_handle_t> (fd)) ;
-#endif	/* not (_WIN32 || _WIN64) */
+        return h_.attach (LowIO::open (file, OpenFlags::WRITE_ONLY | OpenFlags::CREATE | OpenFlags::TRUNCATE, 0666)) ;
     }
 }
