@@ -15,9 +15,9 @@
 #include <stdexcept>
 #include <memory>
 #include <string>
-#ifdef HAVE_FCNTL_H
-#   include <fcntl.h>
-#endif
+
+#include <fcntl.h>
+
 
 #if defined (_WIN64) || defined (_WIN32)
 #   define WIN32_LEAN_AND_MEAN
