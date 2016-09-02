@@ -305,7 +305,12 @@ namespace LowIO {
         //! Opens `file` for reading.
         //! @param file File to read
         result_t	open (const std::string &file) {
-            return h_.attach (LowIO::open (file, OpenFlags::READ_ONLY, 0666)) ;
+            auto fd = LowIO::open (file, OpenFlags::READ_ONLY, 0666) ;
+            if (valid_handle_p (fd)) {
+                return h_.attach (fd) ;
+            }
+            return { ErrorCode::OPEN_FAILED
+                   , std::string { "Failed to open a file \"" }.append (file).append ("\" for reading.") } ;
         }
 
         //! Closes attached handle
@@ -378,7 +383,12 @@ namespace LowIO {
         //! Opens & Creates <code>file</code> for writing.
         //! @param file file to read
         result_t	open (const std::string &file) {
-            return h_.attach (LowIO::open (file, OpenFlags::WRITE_ONLY | OpenFlags::CREATE | OpenFlags::TRUNCATE, 0666)) ;
+            auto fd = LowIO::open (file, OpenFlags::WRITE_ONLY | OpenFlags::CREATE | OpenFlags::TRUNCATE, 0666) ;
+            if (valid_handle_p (fd)) {
+                return h_.attach (fd) ;
+            }
+            return { ErrorCode::OPEN_FAILED
+                   , std::string { "Failed to open a file \"" }.append (file).append ("\" for writing.") } ;
         }
 
         result_t	close () {

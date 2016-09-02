@@ -4,7 +4,12 @@ cmake_minimum_required (VERSION 3.6)
 include (FindBoost)
 
 set (BOOST_ROOT C:/tools/boost)
-set (Boost_USE_STATIC_LIBS YES)
+if ("${MSVC}")
+    set (Boost_USE_STATIC_LIBS YES)
+else ()
+    set (Boost_USE_STATIC_LIBS NO)
+endif ()
+
 find_package (Boost REQUIRED COMPONENTS filesystem)
 
 set (SOURCE_FILES
@@ -15,6 +20,7 @@ set (SOURCE_FILES
     fixture.hpp
     main.cpp)
 
+add_compile_options (-std=gnu++14)
 set_source_files_properties (main.cpp PROPERTIES COTIRE_EXCLUDED ON)
 
 include_directories (${LOWIO_SOURCE_DIR}/ext)
