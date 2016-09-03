@@ -15,8 +15,11 @@ check_function_exists (lseek64 HAVE_LSEEK64)
 
 set (TARGET_NAME lowio)
 
-set (LOWIO_SOURCES lowio.cpp)
+set (LOWIO_SOURCES lowio_unix.cpp lowio_win.cpp)
 set (LOWIO_HEADERS "${LOWIO_SOURCE_DIR}/include/lowio/lowio.hpp")
+
+source_group (Includes FILES ${LOWIO_HEADERS})
+source_group (Sources FILES ${LOWIO_SOURCES})
 
 configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/config.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/config.hpp")
 

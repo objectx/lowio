@@ -1,8 +1,9 @@
 /*
- * lowio.h: Performs I/O via low-level system dependent API
+ * lowio.h: Performs I/O via low-level system dependent API.
  *
- * AUTHOR(S): objectx
+ * Copyright (c) 2016 Masashi Fujita
  */
+
 #pragma once
 
 #ifndef	lowio_hpp__96145883_4CE0_42BE_83E5_CD4D75A540A0
