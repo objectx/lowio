@@ -1,5 +1,5 @@
 /*
- * lowio.h: Performs I/O via lowlevel system dependent API
+ * lowio.h: Performs I/O via low-level system dependent API
  *
  * AUTHOR(S): objectx
  */
@@ -18,13 +18,29 @@
 
 #include <fcntl.h>
 
-
 #if defined (_WIN64) || defined (_WIN32)
 #   define WIN32_LEAN_AND_MEAN
 #   include <Windows.h>
 #endif
 
 namespace LowIO {
+
+    // FileHandle aliases...
+#if defined (_WIN32) || defined (_WIN64)
+    using native_handle_t = HANDLE ;
+    const native_handle_t	BAD_HANDLE = INVALID_HANDLE_VALUE ;
+    inline bool	valid_handle_p (native_handle_t H) {
+        return (H != BAD_HANDLE) ;
+    }
+#else
+    using native_handle_t = int ;
+    const native_handle_t	BAD_HANDLE = static_cast<native_handle_t> (-1) ;
+
+    inline bool	valid_handle_p (native_handle_t H) {
+        return (0 <= H) ;
+    }
+#endif
+
 
     //! Error codes.
     enum class ErrorCode { SUCCESS
@@ -37,6 +53,7 @@ namespace LowIO {
                          , SEEK_FAILED
                          , TRUNCATE_FAILED
                          , DUPLICATE_FAILED } ;
+
 
     //! Represents a operation result.
     class result_t {
@@ -71,6 +88,7 @@ namespace LowIO {
             return code_ != ErrorCode::SUCCESS ;
         }
 
+        //! Retrieves a error message.
         std::string getMessage () const {
             if (message_) {
                 return *message_ ;
@@ -79,7 +97,7 @@ namespace LowIO {
         }
     } ;
 
-
+    //! Represents a result or an error.
     template <typename T_>
         class result_t_ final : public result_t {
             T_  value_ ;
@@ -108,8 +126,11 @@ namespace LowIO {
         } ;
 
 
+    //! Seek origins.
     enum class SeekOrigin { BEGIN, END, CURRENT };
 
+
+    //! Constants for opening a file.
     struct OpenFlags final {
 #if ! (defined (_WIN32) || defined (_WIN64))
         // For the UN?X like systems
@@ -131,22 +152,7 @@ namespace LowIO {
 #endif
     } ;
 
-    // FileHandle aliases...
-#if defined (_WIN32) || defined (_WIN64)
-    using native_handle_t = HANDLE ;
-    const native_handle_t	BAD_HANDLE = INVALID_HANDLE_VALUE ;
-    inline bool	valid_handle_p (native_handle_t H) {
-        return (H != BAD_HANDLE) ;
-    }
-#else
-    using native_handle_t = int ;
-    const native_handle_t	BAD_HANDLE = static_cast<native_handle_t> (-1) ;
-
-    inline bool	valid_handle_p (native_handle_t H) {
-        return (0 <= H) ;
-    }
-#endif
-
+    // Retrieves STD(IN|OUT|ERR) handles.
 #if (! defined (_WIN64)) && (! defined (_WIN32))
     //! Gets OS's native handle for the input.
     //! @return Handle for input
@@ -179,7 +185,7 @@ namespace LowIO {
     }
 #endif  /* _WIN64 OR _WIN32 */
 
-    //! @brief Opens/Creates `path`
+    //! @brief Opens/Creates a file.
     //! @param path Path to open/create.
     //! @param flag Flags
     //! @param mode Access mode
@@ -191,9 +197,9 @@ namespace LowIO {
     //! @remaks After calling this, passed `h` is invalidated.
     result_t close (native_handle_t &&h) ;
 
+
     //! Wrapper class for using OS's native file handle.
     class handle_t final {
-    private:
         native_handle_t	value_ = BAD_HANDLE ;
     public:
         ~handle_t () {
@@ -237,10 +243,8 @@ namespace LowIO {
 
         result_t    attach (native_handle_t h) {
             if (valid ()) {
-                if (auto r = this->close ()) {
-                    /* NO-OP */
-                }
-                else {
+                auto r = this->close () ;
+                if (! r) {
                     return r ;
                 }
             }
@@ -280,8 +284,8 @@ namespace LowIO {
     } ;
 
 
+    //! Input handle abstraction.
     class Input {
-    private:
         handle_t	h_;
     public:
         ~Input () = default ;
@@ -302,6 +306,7 @@ namespace LowIO {
         bool valid () const {
             return h_.valid () ;
         }
+
         //! Opens `file` for reading.
         //! @param file File to read
         result_t	open (const std::string &file) {
@@ -327,15 +332,15 @@ namespace LowIO {
         }
 
         //! Reads at most `size` bytes data into the `data`.
-        //! @return # of bytes read
         //! @param data buffer to store data
         //! @param size buffer size
+        //!
+        //! @return # of bytes read or error
         result_t_<size_t>	fetch (void *data, size_t size) {
             return h_.read (data, size) ;
         }
 
-        //! Reads `size` bytes data into `data`.
-        //! Raising exception if failed to read exactly <code>size</code> bytes.
+        //! Reads exact `size` bytes data into `data`.
         //! @param data buffer to store data
         //! @param size size to read
         result_t	read (void *data, size_t size) {
@@ -350,23 +355,27 @@ namespace LowIO {
         }
 
         //! Moving file-pointer to the specified position.
-        //! @return byte offset from the beginning
         //! @param offset delta value
         //! @param origin origin for computing file-pointer
+        //! @return byte offset from the beginning or error
         result_t_<size_t>	seek (int64_t offset, SeekOrigin origin) {
             return h_.seek (offset, origin) ;
         }
 
+        //! Duplicates `h` and attach it.
+        //! @param h Handle to duplicate
         result_t    duplicate (native_handle_t h) {
             return h_.duplicate (h) ;
         }
     };
 
+
+    //! Output handle abstraction.
     class Output {
-    private:
         handle_t	h_ ;
     public:
         ~Output () = default ;
+
         Output () = default ;
 
         Output (const std::string &file) {
@@ -374,6 +383,7 @@ namespace LowIO {
         }
 
         explicit Output (native_handle_t h) : h_ { h } { /* NO-OP */ }
+
         Output (Output &&src) : h_ { src.detach() } { /* NO-OP */ }
 
         bool valid () const {
@@ -411,10 +421,10 @@ namespace LowIO {
             return h_.write(data, size) ;
         }
 
-        //! Moving file-pointer to specified position (for giant file).
-        //! @return byte offset from the beginning
+        //! Moving file-pointer to specified position.
         //! @param offset delta value
         //! @param origin origin for computing file-pointer
+        //! @return byte offset from the beginning
         result_t_<size_t>   seek (int64_t offset, SeekOrigin origin) {
             return h_.seek (offset, origin) ;
         }
