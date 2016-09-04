@@ -197,6 +197,15 @@ namespace LowIO {
         }
         return this->attach (h_new) ;
     }
+
+    native_handle_t	handle_t::duplicate () {
+        HANDLE	h_new ;
+        HANDLE	h_proc = GetCurrentProcess () ;
+        if (! DuplicateHandle (h_proc, h, h_proc, &h_new, 0, false, DUPLICATE_SAME_ACCESS)) {
+            return BAD_HANDLE ;
+        }
+        return h_new ;
+    }
 }
 
 #endif /* _WIN64 || _WIN32 */

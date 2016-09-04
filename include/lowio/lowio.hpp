@@ -279,9 +279,12 @@ namespace LowIO {
         //! Truncates a opened file at the current position.
         result_t    truncate () ;
 
-        //! Duplicates supplied handle.
+        //! Duplicates supplied handle and attatch it.
         //! @param h The handle to duplicate
         result_t    duplicate (native_handle_t h) ;
+
+        //! Duplicate internal handle.
+        native_handle_t duplicate () const ;
     } ;
 
 
@@ -308,6 +311,13 @@ namespace LowIO {
             return h_.valid () ;
         }
 
+        operator bool () const {
+            return h_.valid () ;
+        }
+
+        bool operator ! () const {
+            return ! h_.valid () ;
+        }
         //! Opens `file` for reading.
         //! @param file File to read
         result_t	open (const std::string &file) {
@@ -389,6 +399,14 @@ namespace LowIO {
 
         bool valid () const {
             return h_.valid () ;
+        }
+
+        operator bool () const {
+            return h_.valid () ;
+        }
+
+        bool operator ! () const {
+            return ! h_.valid () ;
         }
 
         //! Opens & Creates <code>file</code> for writing.

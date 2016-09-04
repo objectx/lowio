@@ -120,6 +120,14 @@ namespace LowIO {
         }
         return this->attach (fd) ;
     }
+
+    native_handle_t handle_t::duplicate () const {
+        int fd = dup (value_) ;
+        if (fd < 0) {
+            return BAD_HANDLE ;
+        }
+        return fd ;
+    }
 }
 
 #endif  /* ! (_WIN64 || _WIN32) */
