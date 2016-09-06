@@ -46,22 +46,28 @@ namespace LowIO {
 
     native_handle_t open (const std::string &path, uint32_t flags, uint32_t mode) {
         DWORD access = 0 ;
-        switch (flags & (OpenFlags::READ_ONLY | OpenFlags::WRITE_ONLY | OpenFlags::READ_WRITE)) {
-        case OpenFlags::READ_ONLY:
-            access = GENERIC_READ ;
-            break ;
-        case OpenFlags::WRITE_ONLY:
-            access = GENERIC_WRITE ;
-            break ;
-        case OpenFlags::READ_WRITE:
-            access = GENERIC_READ | GENERIC_WRITE ;
-            break ;
-        case OpenFlags::APPEND:
-            // TODO: Set append modes.
-        default:
-            assert (false) ;    // Should not reached.
-        }
 
+        if ((flags & OpenFlags::APPEND) != 0) {
+            access |= FILE_APPEND_DATA ;
+            if ((flags & OpenFlags::READ_WRITE) != 0) {
+                access |= GENERIC_READ ;
+            }
+        }
+        else {
+            switch (flags & (OpenFlags::READ_ONLY | OpenFlags::WRITE_ONLY | OpenFlags::READ_WRITE)) {
+            case OpenFlags::READ_ONLY:
+                access = GENERIC_READ ;
+                break ;
+            case OpenFlags::WRITE_ONLY:
+                access = GENERIC_WRITE ;
+                break ;
+            case OpenFlags::READ_WRITE:
+                access = GENERIC_READ | GENERIC_WRITE ;
+                break ;
+            default:
+                assert (false) ;    // Should not reached.
+            }
+        }
         DWORD creation = 0 ;
 
         if ((flags & OpenFlags::CREATE) != 0) {
