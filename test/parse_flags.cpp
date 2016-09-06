@@ -39,6 +39,17 @@ SCENARIO ("Test `parse_flags`", "[parse_flags]") {
         REQUIRE (r.getValue () == flag) ;
     }}}}
 
+    GIVEN ("mode = \"a\"") {
+        const std::string mode { "a" } ;
+    WHEN ("parsing") {
+        auto r = LowIO::parse_flags (mode) ;
+    THEN ("Should success") {
+        REQUIRE (r) ;
+    AND_THEN ("flags should be `OpenFlags::READ_WRITE`") {
+        auto flag = LowIO::OpenFlags::WRITE_ONLY | LowIO::OpenFlags::CREATE | LowIO::OpenFlags::APPEND ;
+        REQUIRE (r.getValue () == flag) ;
+    }}}}
+
     GIVEN ("mode = \"r+\"") {
         const std::string mode { "r+" } ;
     WHEN ("parsing") {
