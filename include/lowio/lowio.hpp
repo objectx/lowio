@@ -53,7 +53,8 @@ namespace LowIO {
                          , WRITE_FAILED
                          , SEEK_FAILED
                          , TRUNCATE_FAILED
-                         , DUPLICATE_FAILED } ;
+                         , DUPLICATE_FAILED
+                         , BAD_PARAMETER } ;
 
 
     //! Represents a operation result.
@@ -152,6 +153,79 @@ namespace LowIO {
         static const uint32_t  EXCLUDE    = _O_EXCL ;
 #endif
     } ;
+
+    //! @brief Composes `OpenFlags` from the supplied sequence.
+    //! @param it_beg Start of the sequence
+    //! @param it_end End of the sequence
+    //! @return Composed flags
+    template <typename Iter_>
+        result_t_<uint32_t> parse_flags (Iter_ it_beg, Iter_ it_end) {
+            uint32_t result = 0 ;
+
+            auto invalid_param = [it_beg, it_end](char ch) {
+                std::string msg { "Invalid open mode '" } ;
+                msg.push_back (ch) ;
+                msg.append ("' found in \"")
+                   .append (it_beg, it_end)
+                   .append ("\".") ;
+                return result_t_<uint32_t> { ErrorCode::BAD_PARAMETER, msg } ;
+            } ;
+
+            auto it = it_beg ;
+            switch (std::tolower (*it++)) {
+            case 'r':
+                result = 0 ;
+                if (it != it_end && *it == '+') {
+                    ++it ;
+                    // "r+"
+                    result |= OpenFlags::READ_WRITE ;
+                }
+                else {
+                    result |= OpenFlags::READ_ONLY ;
+                }
+                break ;
+            case 'w':
+                result = OpenFlags::CREATE | OpenFlags::TRUNCATE ;
+                if (it != it_end && *it == '+') {
+                    ++it ;
+                    // "r+"
+                    result |= OpenFlags::READ_WRITE ;
+                }
+                else {
+                    result |= OpenFlags::WRITE_ONLY ;
+                }
+                break ;
+            case 'a':
+                result = OpenFlags::CREATE | OpenFlags::APPEND ;
+                if (it != it_end && *it == '+') {
+                    ++it ;
+                    // "r+"
+                    result |= OpenFlags::READ_WRITE ;
+                }
+                else {
+                    result |= OpenFlags::WRITE_ONLY ;
+                }
+                break ;
+            default:
+                return invalid_param (*it) ;
+            }
+            for ( ; it != it_end ; ++it) {
+                switch (std::tolower (*it)) {
+                case 'b':
+                    break ;
+                case 'x':
+                    result |= OpenFlags::EXCLUDE ;
+                    break ;
+                default:
+                    return invalid_param (*it) ;
+                }
+            }
+            return result_t_<uint32_t> { result } ;
+        }
+
+    inline result_t_<uint32_t>  parse_flags (const std::string &s) {
+        return parse_flags (s.begin (), s.end ()) ;
+    }
 
     // Retrieves STD(IN|OUT|ERR) handles.
 #if (! defined (_WIN64)) && (! defined (_WIN32))

@@ -56,6 +56,8 @@ namespace LowIO {
         case OpenFlags::READ_WRITE:
             access = GENERIC_READ | GENERIC_WRITE ;
             break ;
+        case OpenFlags::APPEND:
+            // TODO: Set append modes.
         default:
             assert (false) ;    // Should not reached.
         }

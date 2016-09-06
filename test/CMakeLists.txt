@@ -13,12 +13,14 @@ endif ()
 find_package (Boost REQUIRED COMPONENTS filesystem)
 
 set (SOURCE_FILES
-    openclose.cpp
-    handle.cpp
-    output.cpp
-    fixture.cpp
-    fixture.hpp
-    main.cpp)
+     openclose.cpp
+     handle.cpp
+     output.cpp
+     fixture.cpp
+     fixture.hpp
+     parse_flags.cpp
+     main.cpp
+)
 
 add_compile_options (-std=gnu++14)
 set_source_files_properties (main.cpp PROPERTIES COTIRE_EXCLUDED ON)
