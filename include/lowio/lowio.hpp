@@ -9,9 +9,10 @@
 #ifndef	lowio_hpp__96145883_4CE0_42BE_83E5_CD4D75A540A0
 #define	lowio_hpp__96145883_4CE0_42BE_83E5_CD4D75A540A0 1
 
-#include <sys/types.h>
 #include <stdint.h>
-#include <assert.h>
+#include <cassert>
+
+#include <cctype>
 
 #include <stdexcept>
 #include <memory>
@@ -41,7 +42,6 @@ namespace LowIO {
         return (0 <= H) ;
     }
 #endif
-
 
     //! Error codes.
     enum class ErrorCode { SUCCESS
@@ -172,7 +172,8 @@ namespace LowIO {
             } ;
 
             auto it = it_beg ;
-            switch (std::tolower (*it++)) {
+            char ch = std::tolower (*it++) ;
+            switch (ch) {
             case 'r':
                 result = 0 ;
                 if (it != it_end && *it == '+') {
@@ -207,7 +208,7 @@ namespace LowIO {
                 }
                 break ;
             default:
-                return invalid_param (*it) ;
+                return invalid_param (ch) ;
             }
             for ( ; it != it_end ; ++it) {
                 switch (std::tolower (*it)) {
@@ -223,9 +224,12 @@ namespace LowIO {
             return result_t_<uint32_t> { result } ;
         }
 
-    inline result_t_<uint32_t>  parse_flags (const std::string &s) {
-        return parse_flags (s.begin (), s.end ()) ;
-    }
+    template <typename T_>
+        result_t_<uint32_t>  parse_flags (const T_ &s) {
+            using std::begin ;
+            using std::end ;
+            return parse_flags (begin (s), end (s)) ;
+        }
 
     // Retrieves STD(IN|OUT|ERR) handles.
 #if (! defined (_WIN64)) && (! defined (_WIN32))
