@@ -86,6 +86,9 @@ namespace LowIO {
         else if ((flags & OpenFlags::TRUNCATE) != 0) {
             creation |= OPEN_EXISTING | TRUNCATE_EXISTING ;
         }
+        else {
+            creation |= OPEN_EXISTING ;
+        }
 
         HANDLE    H = CreateFileA (path.c_str ()
                                   , access
