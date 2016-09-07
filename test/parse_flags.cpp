@@ -26,7 +26,10 @@ SCENARIO ("Test `parse_flags`", "[parse_flags]") {
     AND_THEN ("flags should be `OpenFlags::READ_ONLY`") {
         auto flag = LowIO::OpenFlags::READ_ONLY ;
         REQUIRE (r.getValue () == flag) ;
-    }}}}
+    AND_THEN ("unparse it") {
+        auto const &s = LowIO::unparse_flags (r.getValue ()) ;
+        REQUIRE (s == "r") ;
+    }}}}}
 
     GIVEN ("mode = \"w\"") {
         const std::string mode { "w" } ;
@@ -37,7 +40,10 @@ SCENARIO ("Test `parse_flags`", "[parse_flags]") {
     AND_THEN ("flags should be `OpenFlags::WRITE_ONLY`") {
         auto flag = LowIO::OpenFlags::WRITE_ONLY | LowIO::OpenFlags::CREATE | LowIO::OpenFlags::TRUNCATE ;
         REQUIRE (r.getValue () == flag) ;
-    }}}}
+    AND_THEN ("unparse it") {
+        auto const &s = LowIO::unparse_flags (r.getValue ()) ;
+        REQUIRE (s == "w") ;
+    }}}}}
 
     GIVEN ("mode = \"a\"") {
         const std::string mode { "a" } ;
@@ -48,7 +54,10 @@ SCENARIO ("Test `parse_flags`", "[parse_flags]") {
     AND_THEN ("flags should be `OpenFlags::READ_WRITE`") {
         auto flag = LowIO::OpenFlags::WRITE_ONLY | LowIO::OpenFlags::CREATE | LowIO::OpenFlags::APPEND ;
         REQUIRE (r.getValue () == flag) ;
-    }}}}
+    AND_THEN ("unparse it") {
+        auto const &s = LowIO::unparse_flags (r.getValue ()) ;
+        REQUIRE (s == "a") ;
+    }}}}}
 
     GIVEN ("mode = \"r+\"") {
         const std::string mode { "r+" } ;
@@ -59,7 +68,10 @@ SCENARIO ("Test `parse_flags`", "[parse_flags]") {
     AND_THEN ("flags should be `OpenFlags::READ_ONLY`") {
         auto flag = LowIO::OpenFlags::READ_WRITE ;
         REQUIRE (r.getValue () == flag) ;
-    }}}}
+    AND_THEN ("unparse it") {
+        auto const &s = LowIO::unparse_flags (r.getValue ()) ;
+        REQUIRE (s == "r+") ;
+    }}}}}
 
     GIVEN ("mode = \"w+\"") {
         const std::string mode { "w+" } ;
@@ -70,5 +82,8 @@ SCENARIO ("Test `parse_flags`", "[parse_flags]") {
     AND_THEN ("flags should be `OpenFlags::WRITE_ONLY`") {
         auto flag = LowIO::OpenFlags::READ_WRITE | LowIO::OpenFlags::CREATE | LowIO::OpenFlags::TRUNCATE ;
         REQUIRE (r.getValue () == flag) ;
-    }}}}
+    AND_THEN ("unparse it") {
+        auto const &s = LowIO::unparse_flags (r.getValue ()) ;
+        REQUIRE (s == "w+") ;
+    }}}}}
 }

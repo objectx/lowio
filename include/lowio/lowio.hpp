@@ -233,6 +233,9 @@ namespace LowIO {
             return parse_flags (begin (s), end (s)) ;
         }
 
+    //! Do as opposed to `parse_flags`.
+    std::string unparse_flags (uint32_t flags) ;
+
     // Retrieves STD(IN|OUT|ERR) handles.
 #if (! defined (_WIN64)) && (! defined (_WIN32))
     //! Gets OS's native handle for the input.
