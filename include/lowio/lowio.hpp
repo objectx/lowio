@@ -29,6 +29,9 @@
 
 namespace LowIO {
 
+    //! @brief Default buffer size when needed some bufferings.
+    static const size_t DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024 ; // 4MiB
+
     // FileHandle aliases...
 #if defined (_WIN32) || defined (_WIN64)
     using native_handle_t = HANDLE ;
@@ -160,6 +163,7 @@ namespace LowIO {
     //! @param it_beg Start of the sequence
     //! @param it_end End of the sequence
     //! @return Composed flags
+    //! @remarks Syntax for the specifier is: ^[rwa]\+?(?:b|x)*
     template <typename Iter_>
         result_t_<uint32_t> parse_flags (Iter_ it_beg, Iter_ it_end) {
             uint32_t result = 0 ;
@@ -240,19 +244,19 @@ namespace LowIO {
 #if (! defined (_WIN64)) && (! defined (_WIN32))
     //! Gets OS's native handle for the input.
     //! @return Handle for input
-    inline native_handle_t	GetSTDIN () {
+    constexpr native_handle_t	GetSTDIN () {
         return 0 ;
     }
 
     //! Gets OS's native handle for output.
     //! @return Handle for output
-    inline native_handle_t	GetSTDOUT () {
+    constexpr native_handle_t	GetSTDOUT () {
         return 1 ;
     }
 
     //! Gets OS's native handle for error output.
     //! @return Handle for error output
-    inline native_handle_t	GetSTDERR () {
+    constexpr native_handle_t	GetSTDERR () {
         return 2 ;
     }
 #else   /* _WIN64 OR _WIN32 */
@@ -373,7 +377,6 @@ namespace LowIO {
 
     //! Input handle abstraction.
     class Input {
-        static const size_t DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024 ;
         handle_t	h_;
     public:
         ~Input () = default ;
@@ -546,6 +549,41 @@ namespace LowIO {
         result_t	write (const void *data, size_t size) {
             return h_.write(data, size) ;
         }
+
+        template <typename Iter_>
+            result_t    writeAll (Iter_ it_beg, Iter_ it_end, size_t buffer_size = 0) {
+                if (buffer_size == 0) {
+                    buffer_size = DEFAULT_BUFFER_SIZE ;
+                }
+                std::vector<uint8_t>    buffer ;
+                buffer.resize (buffer_size) ;
+
+                size_t  fill = 0 ;
+                for (auto it = it_beg ; it != it_end ; ++it) {
+                    buffer [fill++] = *it ;
+                    if (buffer_size <= fill) {
+                        auto r = h_.write (buffer.data (), fill) ;
+                        if (! r) {
+                            return result_t { std::move (r) } ;
+                        }
+                        fill = 0 ;
+                    }
+                }
+                if (0 < fill) {
+                    auto r = h_.write (buffer.data (), fill) ;
+                    if (! r) {
+                        return result_t { std::move (r) } ;
+                    }
+                }
+                return {} ;
+            }
+
+        template <typename T_>
+            result_t    writeAll (const T_ &container, size_t buffer_size = 0) {
+                using std::begin ;
+                using std::end ;
+                return writeAll (begin (container), end (container), buffer_size) ;
+            }
 
         //! Moving file-pointer to specified position.
         //! @param offset delta value
