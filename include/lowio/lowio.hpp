@@ -17,6 +17,8 @@
 #include <stdexcept>
 #include <memory>
 #include <string>
+#include <iterator>
+#include <vector>
 
 #include <fcntl.h>
 
@@ -368,6 +370,7 @@ namespace LowIO {
 
     //! Input handle abstraction.
     class Input {
+        static const size_t DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024 ;
         handle_t	h_;
     public:
         ~Input () = default ;
@@ -442,6 +445,29 @@ namespace LowIO {
             }
             return {} ;
         }
+
+        template <typename Iter_>
+            result_t    readAll (Iter_ it, size_t buffer_size = 0) {
+                std::vector<uint8_t>    buffer ;
+                if (buffer_size == 0) {
+                    buffer_size = DEFAULT_BUFFER_SIZE ;
+                }
+                buffer.resize (buffer_size) ;
+
+                while (true) {
+                    auto r = h_.read (buffer.data (), buffer.size ()) ;
+                    if (! r) {
+                        return result_t { std::move (r) } ;
+                    }
+                    auto sz = r.getValue () ;
+                    for (size_t i = 0 ; i < sz ; ++i) {
+                        *it++ = buffer [i] ;
+                    }
+                    if (sz < buffer.size ()) {
+                        return result_t { std::move (r) } ;
+                    }
+                }
+            }
 
         //! Moving file-pointer to the specified position.
         //! @param offset delta value
