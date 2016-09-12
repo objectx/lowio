@@ -87,7 +87,7 @@ namespace LowIO {
             return code_ ;
         }
 
-        operator bool () const {
+        explicit operator bool () const {
             return code_ == ErrorCode::SUCCESS ;
         }
 
