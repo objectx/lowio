@@ -8,7 +8,6 @@
 #define common_hpp__d5e0679b9db3416cba11dd99a5e52ca2    1
 
 #include <stdint.h>
-#include <cache.h>
 #include <iostream>
 #include <string>
 #include <vector>
