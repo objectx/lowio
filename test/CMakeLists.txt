@@ -39,4 +39,4 @@ if (COMMAND cotire)
 endif ()
 
 add_test (NAME lowio-test
-          COMMAND test)
+          COMMAND lowio-test -s -r compact)
