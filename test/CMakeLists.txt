@@ -23,7 +23,7 @@ set (SOURCE_FILES
      main.cpp
 )
 
-add_compile_options (-std=gnu++14)
+# add_compile_options (-std=gnu++14)
 set_source_files_properties (main.cpp PROPERTIES COTIRE_EXCLUDED ON)
 
 include_directories (${LOWIO_SOURCE_DIR}/ext)
