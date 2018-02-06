@@ -1,16 +1,7 @@
 
-cmake_minimum_required (VERSION 3.6)
+cmake_minimum_required (VERSION 3.10)
 
-include (FindBoost)
-
-set (BOOST_ROOT C:/tools/boost)
-if ("${MSVC}")
-    set (Boost_USE_STATIC_LIBS YES)
-else ()
-    set (Boost_USE_STATIC_LIBS NO)
-endif ()
-
-find_package (Boost REQUIRED COMPONENTS filesystem)
+# include (${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 
 set (SOURCE_FILES
      common.hpp
@@ -26,11 +17,10 @@ set (SOURCE_FILES
 # add_compile_options (-std=gnu++14)
 set_source_files_properties (main.cpp PROPERTIES COTIRE_EXCLUDED ON)
 
-include_directories (${LOWIO_SOURCE_DIR}/ext)
-
 function (make_test name_)
     add_executable (${name_} pch.cpp ${SOURCE_FILES})
-    target_link_libraries (${name_} PRIVATE lowio Boost::disable_autolinking Boost::filesystem)
+    conan_basic_setup (TARGETS)
+    target_link_libraries (${name_} PRIVATE lowio CONAN_PKG::boost_filesystem CONAN_PKG::catch2)
 
     set_target_properties (${name_} PROPERTIES COTIRE_PREFIX_HEADER_INCLUDE_PATH "${LOWIO_SOURCE_DIR}/ext")
 

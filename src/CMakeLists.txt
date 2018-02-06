@@ -1,8 +1,8 @@
 #
-# Copyright (c) 2016 Masashi Fujita
+# Copyright (c) 2016-2018 Masashi Fujita
 #
 
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.10)
 
 include (CheckIncludeFileCXX)
 include (CheckFunctionExists)
