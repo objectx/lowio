@@ -22,7 +22,7 @@ TEST_CASE_METHOD (Fixture::DirectoryFixture, "Test: LowIO::open", "[openclose]")
                                | LowIO::OpenFlags::TRUNCATE), 0666) ;
     THEN ("Should success.") {
         CAPTURE (h) ;
-        CAPTURE (path) ;
+        CAPTURE (path.string ()) ;
         REQUIRE (LowIO::valid_handle_p (h)) ;
     AND_WHEN ("Close it") {
         auto r = LowIO::close (std::move (h)) ;
