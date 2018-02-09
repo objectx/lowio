@@ -1,22 +1,22 @@
-from conans import ConanFile, CMake, tools
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from conans import ConanFile, CMake, tools, RunEnvironment
 import os
 
-class LowioTestConan(ConanFile):
+
+class TestPackageConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
     generators = "cmake"
 
     def build(self):
         cmake = CMake(self)
-        # Current dir is "test_package/build/<build_id>" and CMakeLists.txt is in "test_package"
         cmake.configure()
         cmake.build()
-
-    def imports(self):
-        self.copy("*.dll", dst="bin", src="bin")
-        self.copy("*.dylib*", dst="bin", src="lib")
-        self.copy('*.so*', dst='bin', src='lib')
-
+        
     def test(self):
-        if not tools.cross_building(self.settings):
-            os.chdir("bin")
-            self.run(".%sexample" % os.sep)
+        with tools.environment_append(RunEnvironment(self).vars):
+            if self.settings.os == "Windows":
+                self.run(os.path.join("bin","test_package"))
+            else:
+                self.run("DYLD_LIBRARY_PATH=%s %s"%(os.environ['DYLD_LIBRARY_PATH'],os.path.join("bin","test_package")))
