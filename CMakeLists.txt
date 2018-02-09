@@ -2,7 +2,7 @@
 # Copyright (c) 2016 Masashi Fujita
 #
 
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required (VERSION 3.9)
 
 project (LOWIO
          LANGUAGES CXX C
