@@ -6,7 +6,7 @@ from conans import ConanFile, CMake, tools
 
 class LowIOConan(ConanFile):
     name = "lowio"
-    version = "1.0"
+    version = "1.0.0"
     license = "MIT"
     url = "https://github.com/objectx/lowio"
     description = "Cross platform handle based I/O"
@@ -17,7 +17,7 @@ class LowIOConan(ConanFile):
     generators = "cmake"
     exports = "LICENSE"
     exports_sources = "CMakeLists.txt", "include/*", "src/*", "test/*"
-    
+
     def configure(self):
         if self.options.shared:
             self.options["boost_filesystem"].shared = True
